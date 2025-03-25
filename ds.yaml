@@ -1,0 +1,156 @@
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "9"
+      meta.helm.sh/release-name: kube-guardian
+      meta.helm.sh/release-namespace: kube-guardian
+    creationTimestamp: "2025-03-13T03:22:38Z"
+    generation: 9
+    labels:
+      app.kubernetes.io/instance: kube-guardian
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/version: 0.0.9
+      helm.sh/chart: kube-guardian-0.0.25
+    name: kube-guardian-controller
+    namespace: kube-guardian
+    resourceVersion: "266748"
+    uid: efff5c8e-9f30-4660-860e-3121d58aaf98
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: kube-guardian
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: kube-guardian
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: kube-guardian
+          app.kubernetes.io/version: 0.0.9
+          helm.sh/chart: kube-guardian-0.0.25
+      spec:
+        automountServiceAccountToken: true
+        containers:
+        - env:
+          - name: RUST_LOG
+            value: INFO
+          - name: CURRENT_NODE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: API_ENDPOINT
+            value: http://broker.kube-guardian.svc.cluster.local:9090
+          - name: EXCLUDED_NAMESPACES
+            value: kube-guardian,kube-system
+          image: ghcr.io/xentra-ai/images/guardian-controller:0.80.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+              - CAP_BPF
+            privileged: true
+            readOnlyRootFilesystem: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /sys/kernel/debug
+            name: debugfs
+          - mountPath: /sys/fs/bpf
+            name: bpffs
+            readOnly: true
+          - mountPath: /run/containerd/io.containerd.runtime.v2.task
+            name: run-containerd-bundle
+            readOnly: true
+          - mountPath: /run/containerd/containerd.sock
+            name: containerd-sock
+            readOnly: true
+          - mountPath: /sys/kernel/tracing
+            name: tracefs
+            readOnly: true
+          - mountPath: /proc
+            name: hostproc
+            readOnly: true
+          - mountPath: /run/containerd/io.containerd.runtime.v2.task
+            name: run-containerd-bundle
+            readOnly: true
+          - mountPath: /run/containerd/containerd.sock
+            name: containerd-sock
+            readOnly: true
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until wget -qO- http://broker.kube-guardian.svc.cluster.local:9090/health;
+            do sleep 5; done
+          image: busybox:latest
+          imagePullPolicy: Always
+          name: wait-for-api
+          resources: {}
+          securityContext: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        serviceAccount: controller
+        serviceAccountName: controller
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+        volumes:
+        - hostPath:
+            path: /sys/fs/bpf
+            type: Directory
+          name: bpffs
+        - hostPath:
+            path: /run/containerd/io.containerd.runtime.v2.task
+            type: ""
+          name: run-containerd-bundle
+        - hostPath:
+            path: /run/containerd/containerd.sock
+            type: ""
+          name: containerd-sock
+        - hostPath:
+            path: /proc
+            type: Directory
+          name: hostproc
+        - hostPath:
+            path: /sys/kernel/debug
+            type: ""
+          name: debugfs
+        - hostPath:
+            path: /sys/kernel/tracing
+            type: Directory
+          name: tracefs
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 9
+    updatedNumberScheduled: 1
+kind: List
+metadata:
+  resourceVersion: ""
